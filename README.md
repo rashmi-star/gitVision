@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GitVision
 
-## Getting Started
+Next.js + shadcn/ui app that analyzes a GitHub repository and generates:
 
-First, run the development server:
+- Repository classification (project type, frontend, backend, signals)
+- Preview strategy (real UI with mocks vs generated demo UI)
+- Asset resolution options and asset-source detection
+- Mock backend response samples
+- Architecture summary + diagram nodes + user flow
+- Optional OpenAI-powered enrichment and demo video script text
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Configure OpenAI (optional):
+
+```bash
+cp .env.example .env.local
+```
+
+Set `OPENAI_API_KEY` in `.env.local`.
+Optional model overrides:
+
+- `OPENAI_ANALYSIS_MODEL` (default: `gpt-4.1-mini`)
+- `OPENAI_ANALYSIS_FALLBACK_MODEL` (default: `gpt-4o-mini`)
+- `OPENAI_DEMO_MODEL` (default: `gpt-4.1-mini`)
+- `OPENAI_DEMO_FALLBACK_MODEL` (default: `gpt-4o-mini`)
+
+3. Run development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `POST /api/analyze`: clones repo to temporary workspace, scans files, infers stack, endpoints, assets, and returns preview plan.
+- `POST /api/demo-script`: returns a short demo-script scene list (OpenAI if key available, fallback otherwise).
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Temp repository clone is cleaned up after analysis.
+- If backend cannot be executed, the app returns mock response payloads for preview.
+- OpenAI key can be passed from UI input or from `OPENAI_API_KEY`.
