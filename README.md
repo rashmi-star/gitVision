@@ -8,6 +8,7 @@ Next.js + shadcn/ui app that analyzes a GitHub repository and generates:
 - Mock backend response samples
 - Architecture summary + diagram nodes + user flow
 - Optional OpenAI-powered enrichment and demo video script text
+- **Vercel deployment**: One-click deploy for Next.js, React/Vite, Vue, and static sites
 
 ## Setup
 
@@ -31,7 +32,12 @@ Optional model overrides:
 - `OPENAI_DEMO_MODEL` (default: `gpt-4.1-mini`)
 - `OPENAI_DEMO_FALLBACK_MODEL` (default: `gpt-4o-mini`)
 
-3. Run development server:
+3. Configure Vercel (optional, for deploy):
+
+   - `VERCEL_TOKEN`: Create at [vercel.com/account/tokens](https://vercel.com/account/tokens)
+   - The GitHub repo must be accessible to your Vercel account (GitHub integration)
+
+4. Run development server:
 
 ```bash
 npm run dev
@@ -43,9 +49,10 @@ Open `http://localhost:3000`.
 
 - `POST /api/analyze`: clones repo to temporary workspace, scans files, infers stack, endpoints, assets, and returns preview plan.
 - `POST /api/demo-script`: returns a short demo-script scene list (OpenAI if key available, fallback otherwise).
+- `POST /api/deploy`: deploys a GitHub repo to Vercel (Next.js, React/Vite, Vue, static sites). Requires `VERCEL_TOKEN`.
 
 ## Notes
 
-- Temp repository clone is cleaned up after analysis.
-- If backend cannot be executed, the app returns mock response payloads for preview.
+- Temp repository clone (`/tmp/gitvision-job-*`) is deleted after analysis and Vercel deployment is triggered. Only metadata (preview URL, deployment ID) is stored—no repo files on disk.
+- Vercel deployment is triggered directly after analysis (no local build check).
 - OpenAI key can be passed from UI input or from `OPENAI_API_KEY`.

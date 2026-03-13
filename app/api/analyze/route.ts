@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { generateTextWithFallback } from "@/lib/openai";
 import type { AnalyzeResponse } from "@/lib/types";
+import { deployToVercel } from "@/lib/vercel";
 
 const requestSchema = z.object({
   repositoryUrl: z.string().url(),
@@ -14,6 +15,8 @@ const requestSchema = z.object({
   assetBaseUrl: z.string().url().optional().or(z.literal("")),
   openaiApiKey: z.string().optional(),
   geminiApiKey: z.string().optional(),
+  deployToVercel: z.boolean().optional().default(true),
+  vercelToken: z.string().optional(),
 });
 
 const MAX_FILES = 2500;
@@ -34,9 +37,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { repositoryUrl, deploymentUrl, assetBaseUrl } = parsed.data;
+  const { repositoryUrl, deploymentUrl, assetBaseUrl, deployToVercel: shouldDeploy } = parsed.data;
   const openaiApiKey = parsed.data.openaiApiKey || parsed.data.geminiApiKey;
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "product-vision-"));
+  const vercelToken = parsed.data.vercelToken || process.env.VERCEL_TOKEN;
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "gitvision-job-"));
 
   try {
     const git = simpleGit();
@@ -54,13 +59,32 @@ export async function POST(request: Request) {
 
     const aiResult = await enrichWithOpenAI(base, scan, openaiApiKey);
 
-    return NextResponse.json(aiResult);
+    let vercelDeployment: AnalyzeResponse["vercelDeployment"] | undefined;
+
+    if (shouldDeploy && aiResult.vercelDeployable && vercelToken) {
+      const deployResult = await deployToVercel(repositoryUrl, repositoryRef, vercelToken);
+      if (deployResult.ok) {
+        vercelDeployment = {
+          url: deployResult.url,
+          deploymentId: deployResult.deploymentId,
+          status: deployResult.status,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    }
+
+    return NextResponse.json({
+      ...aiResult,
+      vercelDeployment,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to analyze repository." },
       { status: 500 },
     );
   } finally {
+    // Delete temp clone after analysis and (if applicable) Vercel deployment triggered.
+    // We only keep metadata (preview URL, deployment ID); no repo files on disk.
     await rm(tempRoot, { recursive: true, force: true });
   }
 }
@@ -193,6 +217,7 @@ function buildHeuristicAnalysis(
   const assetHints = detectAssetHints(contentRows);
   const missingAssetsDetected =
     assetHints.length > 0 && !files.some((f) => f.startsWith("public/") || f.startsWith("assets/"));
+  const vercelDeployable = isVercelDeployable(frontend, deps, fileSet);
   const previewStrategy = hasUi
     ? {
         mode: "real-ui-with-mocks" as const,
@@ -233,6 +258,7 @@ function buildHeuristicAnalysis(
     repository: repositoryUrl,
     previewUrl: inferredPreview.url,
     previewUrlSource: inferredPreview.source,
+    vercelDeployable,
     repositoryRef,
     readmeSummary: scan.readmeSummary,
     techStack,
@@ -269,7 +295,7 @@ function buildHeuristicAnalysis(
       "Paste repository URL",
       "Analyze stack and structure",
       "Choose preview strategy",
-      "Run sandbox + mock missing services",
+      "Deploy to Vercel",
       "Review product insights",
     ]),
     detectedScreens: detectedScreens.slice(0, 12),
@@ -313,9 +339,12 @@ async function enrichWithOpenAI(
   try {
     const prompt = [
       "You are a software repository analysis engine.",
-      "Return strict JSON with keys: architectureSummary, userFlows, aiNotes, detectedScreens, flowChartMermaid.",
+      "Return strict JSON with keys: architectureSummary, userFlows, aiNotes, detectedScreens, flowChartMermaid, previewStrategy.",
       "Keep detectedScreens and userFlows arrays concise (max 6 each).",
       "flowChartMermaid must be valid Mermaid syntax starting with 'flowchart TD'. Keep it compact.",
+      "previewStrategy must be an object: { mode, reason }.",
+      "mode must be exactly one of: real-ui-with-mocks, generated-demo-ui.",
+      "If repository has UI screens/components, prefer real-ui-with-mocks.",
       "Repository signals:",
       JSON.stringify(
         {
@@ -361,6 +390,7 @@ async function enrichWithOpenAI(
                 ? parsed.userFlows.slice(0, 6).map(String)
                 : analysis.userFlows,
             ),
+      previewStrategy: parsePreviewStrategy(parsed.previewStrategy, analysis.previewStrategy),
       aiNotes: typeof parsed.aiNotes === "string" ? parsed.aiNotes : "AI-enriched analysis complete.",
     };
   } catch {
@@ -370,6 +400,24 @@ async function enrichWithOpenAI(
         "OpenAI response was unavailable for this run, so GitVision used standard heuristic analysis instead.",
     };
   }
+}
+
+function parsePreviewStrategy(
+  value: unknown,
+  fallback: AnalyzeResponse["previewStrategy"],
+): AnalyzeResponse["previewStrategy"] {
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+
+  const candidate = value as { mode?: unknown; reason?: unknown };
+  const mode =
+    candidate.mode === "real-ui-with-mocks" || candidate.mode === "generated-demo-ui"
+      ? candidate.mode
+      : fallback.mode;
+  const reason = typeof candidate.reason === "string" && candidate.reason.trim() ? candidate.reason : fallback.reason;
+
+  return { mode, reason };
 }
 
 function buildDefaultFlowChart(flows: string[]) {
@@ -397,6 +445,19 @@ function safeParseJson(raw: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function isVercelDeployable(
+  frontend: string,
+  deps: Record<string, string>,
+  files: Set<string>,
+): boolean {
+  if (frontend === "Next.js") return true;
+  if (frontend === "React + Vite" || frontend === "React") return true;
+  if (frontend === "Vue") return true;
+  if ([...files].some((f) => f.endsWith(".html") && !f.includes("templates"))) return true;
+  if (deps["@11ty/eleventy"] || deps.astro || deps.svelte) return true;
+  return false;
 }
 
 function detectFrontend(

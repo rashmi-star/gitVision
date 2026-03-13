@@ -30,12 +30,14 @@ export async function POST(request: Request) {
   if (!key) {
     return NextResponse.json({
       scenes: [
-        "Scene 1: Intro card with repository URL.",
-        "Scene 2: Analyzer identifies stack and APIs.",
-        "Scene 3: Preview renders UI with mock backend.",
-        "Scene 4: Architecture summary and final callout.",
+        "SCENE 1: Product summary. Audio: 'Repository overview and purpose.'",
+        "SCENE 2: Key screen. Audio: 'Primary user interface.'",
+        "SCENE 3: Additional screen. Audio: 'Supporting screens and flows.'",
+        "SCENE 4: Architecture. Audio: 'Tech stack and structure.'",
+        "SCENE 5: Try it. Audio: 'Explore the repo.'",
       ],
-      note: "Set OPENAI_API_KEY (or provide key in the form) for AI-generated script text.",
+      sceneTypes: ["summary", "screen", "screen", "architecture", "cta"],
+      note: "Set OPENAI_API_KEY for AI-generated script.",
     });
   }
 
@@ -55,25 +57,31 @@ export async function POST(request: Request) {
     };
 
     const prompt = [
-      "Create a concise 4-scene demo video script about WHAT THE REPOSITORY SOFTWARE DOES.",
-      "Return strict JSON only: {\"scenes\": string[]}.",
-      "Each scene must follow this format: SCENE X: <visual>. Audio: '<voiceover>'.",
-      "Do not mention GitVision, analyzer, preview tool, or prompt/system details.",
-      "Do not describe 'this app' unless the repository itself is that app.",
-      "Ground scenes in repository use case and tech stack from README/code signals.",
-      "At least 2 scenes must mention concrete stack elements or endpoints/screens from provided context.",
+      "Create exactly 5 scenes for a Remotion demo video. Return strict JSON: {\"scenes\": string[], \"sceneTypes\": string[]}.",
+      "sceneTypes: for each scene use exactly one of: summary, screen, architecture, cta. AI picks best fit for the repo.",
+      "Scene 1: summary. Scene 2-3: screen (or summary if no screens). Scene 4: architecture. Scene 5: cta.",
+      "Each scene: SCENE X: <short headline, max 8 words>. Audio: '<voiceover>'. Headlines brief.",
+      "Do not mention GitVision. Focus on the repository.",
       `Repository context JSON:\n${JSON.stringify(context, null, 2)}`,
     ].join("\n");
 
     const data = await generateScenesWithRetry(key, prompt);
     const candidateScenes =
-      Array.isArray(data.scenes) && data.scenes.length ? data.scenes.slice(0, 6) : [];
+      Array.isArray(data.scenes) && data.scenes.length ? data.scenes.slice(0, 5) : [];
     const scenes = isRepoGrounded(candidateScenes)
       ? candidateScenes
       : buildRepoGroundedFallback(context);
+    const sceneTypes = (Array.isArray(data.sceneTypes) ? data.sceneTypes : []).slice(0, 5);
+    const validTypes = ["summary", "screen", "architecture", "cta"] as const;
+    const types = scenes.map((_, i) =>
+      validTypes.includes(sceneTypes[i] as (typeof validTypes)[number])
+        ? (sceneTypes[i] as (typeof validTypes)[number])
+        : (["summary", "screen", "screen", "architecture", "cta"] as const)[i]
+    );
 
     return NextResponse.json({
       scenes,
+      sceneTypes: types,
     });
   } catch {
     const fallbackContext = {
@@ -89,8 +97,10 @@ export async function POST(request: Request) {
       endpoints: parsed.data.apiEndpoints ?? [],
       uiComponents: parsed.data.uiComponents ?? [],
     };
+    const fallbackScenes = buildRepoGroundedFallback(fallbackContext);
     return NextResponse.json({
-      scenes: buildRepoGroundedFallback(fallbackContext),
+      scenes: fallbackScenes,
+      sceneTypes: ["summary", "screen", "screen", "architecture", "cta"] as const,
       note: "OpenAI request failed. Fallback script returned.",
     });
   }
@@ -106,7 +116,7 @@ async function generateScenesWithRetry(apiKey: string, basePrompt: string) {
     raw = await generateTextWithFallback(apiKey, [DEMO_SCRIPT_MODEL, DEMO_SCRIPT_FALLBACK_MODEL], prompt, 1100);
     raw = raw.replace(/```json|```/gi, "").trim();
     try {
-      const parsed = JSON.parse(raw) as { scenes?: string[] };
+      const parsed = JSON.parse(raw) as { scenes?: string[]; sceneTypes?: string[] };
       if (Array.isArray(parsed.scenes) && parsed.scenes.length > 0) {
         return parsed;
       }
@@ -147,10 +157,12 @@ function buildRepoGroundedFallback(context: {
   const flow = context.flows[0] || "main user workflow";
   const summary = (context.readmeSummary || context.summary).slice(0, 180);
 
+  const screen2 = context.screens[1] || context.screens[0] || "main interface";
   return [
-    `SCENE 1: Open repository ${context.repository} and highlight the ${context.projectType} purpose from README. Audio: '${summary}'.`,
-    `SCENE 2: Navigate to ${screen} and show key UI behavior tied to ${flow}. Audio: 'This screen demonstrates the repository's main use case from the codebase.'`,
-    `SCENE 3: Inspect runtime stack and code modules using ${stack || "detected stack signals"}. Audio: 'The implementation combines these technologies to deliver the core experience.'`,
-    `SCENE 4: Trigger ${endpoint} and display expected result flow in the app. Audio: 'This endpoint interaction shows how data moves through the repository system.'`,
+    `SCENE 1: Product summary card with repo name and purpose. Audio: '${summary}'.`,
+    `SCENE 2: Visual of ${screen} with key UI elements. Audio: 'This screen shows the primary user flow.'`,
+    `SCENE 3: Visual of ${screen2} with navigation. Audio: 'Additional screens support the full experience.'`,
+    `SCENE 4: Architecture diagram with ${stack || "tech stack"}. Audio: 'Built with ${stack || "modern technologies"}.'`,
+    `SCENE 5: CTA - Try it, explore the repo. Audio: 'Explore the repository and see it in action.'`,
   ];
 }

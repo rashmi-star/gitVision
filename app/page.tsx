@@ -12,7 +12,7 @@ const features = [
   },
   {
     title: "Preview the product safely",
-    description: "GitVision creates a sandbox preview and mocks missing APIs, assets, and data when setup is incomplete.",
+    description: "GitVision analyzes GitHub repos and deploys them to Vercel for instant preview.",
   },
   {
     title: "Turn code into a clear product story",
@@ -23,7 +23,7 @@ const features = [
 const steps = [
   "Paste your GitHub link.",
   "GitVision analyzes product type, stack, UI, APIs, and architecture.",
-  "Launch a sandbox preview with simulated missing data and assets.",
+  "Deploy to Vercel for a live preview URL.",
   "Get a complete product narrative you can share.",
 ];
 

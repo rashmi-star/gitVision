@@ -2,6 +2,13 @@ export type AnalyzeResponse = {
   repository: string;
   previewUrl?: string;
   previewUrlSource?: string;
+  vercelDeployable?: boolean;
+  vercelDeployment?: {
+    url: string;
+    deploymentId: string;
+    status: string;
+    timestamp: string;
+  };
   repositoryRef?: string;
   readmeSummary?: string;
   techStack: string[];
