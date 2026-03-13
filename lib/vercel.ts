@@ -1,9 +1,11 @@
 /**
  * Vercel deployment integration.
  * Deploys GitHub repos that Vercel can host (Next.js, React/Vite, static sites).
+ * Disables deployment protection so preview URLs are publicly accessible.
  */
 
 const VERCEL_API = "https://api.vercel.com/v13";
+const VERCEL_PROJECTS_API = "https://api.vercel.com/v9";
 
 function parseGithubRepo(repositoryUrl: string): { owner: string; repo: string } | null {
   const normalized = repositoryUrl.replace(/\.git$/i, "").trim();
@@ -23,6 +25,35 @@ function toVercelProjectName(repo: string): string {
     name = name.replace(/---+/g, "--");
   }
   return name.slice(0, 100) || "project";
+}
+
+/** Disable deployment protection so preview URLs are publicly accessible. */
+async function disableDeploymentProtection(
+  projectName: string,
+  vercelToken: string,
+): Promise<void> {
+  try {
+    const teamId = process.env.VERCEL_TEAM_ID;
+    const url = new URL(`${VERCEL_PROJECTS_API}/projects/${encodeURIComponent(projectName)}`);
+    if (teamId) url.searchParams.set("teamId", teamId);
+    const response = await fetch(url.toString(), {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${vercelToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ssoProtection: null,
+        passwordProtection: null,
+      }),
+    });
+    if (!response.ok) {
+      // Log but don't fail deployment - protection may already be off or token lacks permission
+      console.warn("[vercel] Could not disable deployment protection:", response.status, await response.text());
+    }
+  } catch {
+    // Ignore - deployment already succeeded
+  }
 }
 
 export type VercelDeployResult =
@@ -74,6 +105,9 @@ export async function deployToVercel(
     const deploymentId = data.id ?? "";
     const status = data.state ?? "QUEUED";
     const url = data.url ? `https://${data.url}` : "";
+
+    // Disable deployment protection so preview URLs are publicly accessible
+    await disableDeploymentProtection(toVercelProjectName(repo.repo), vercelToken);
 
     return { ok: true, url, status, deploymentId };
   } catch (err) {
