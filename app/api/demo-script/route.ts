@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateTextWithFallback } from "@/lib/openai";
+import { generateTextWithFallback, hasAIConfig } from "@/lib/openai";
 
 const schema = z.object({
   repository: z.string(),
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const key = parsed.data.openaiApiKey || parsed.data.geminiApiKey || process.env.OPENAI_API_KEY;
-  if (!key) {
+  if (!key && !hasAIConfig()) {
     return NextResponse.json({
       scenes: [
         "SCENE 1: Product summary. Audio: 'Repository overview and purpose.'",
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         "SCENE 5: Try it. Audio: 'Explore the repo.'",
       ],
       sceneTypes: ["summary", "screen", "screen", "architecture", "cta"],
-      note: "Set OPENAI_API_KEY for AI-generated script.",
+      note: "Set OPENAI_API_KEY or Azure OpenAI env vars for AI-generated script.",
     });
   }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       `Repository context JSON:\n${JSON.stringify(context, null, 2)}`,
     ].join("\n");
 
-    const data = await generateScenesWithRetry(key, prompt);
+    const data = await generateScenesWithRetry(key || "", prompt);
     const candidateScenes =
       Array.isArray(data.scenes) && data.scenes.length ? data.scenes.slice(0, 5) : [];
     const scenes = isRepoGrounded(candidateScenes)

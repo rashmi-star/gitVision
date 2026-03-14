@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { simpleGit } from "simple-git";
 import { z } from "zod";
 
-import { generateTextWithFallback } from "@/lib/openai";
+import { generateTextWithFallback, hasAIConfig } from "@/lib/openai";
 import type { AnalyzeResponse } from "@/lib/types";
 import { deployToVercel } from "@/lib/vercel";
 
@@ -328,11 +328,11 @@ async function enrichWithOpenAI(
   openaiApiKey?: string,
 ) {
   const key = openaiApiKey || process.env.OPENAI_API_KEY;
-  if (!key) {
+  if (!key && !hasAIConfig()) {
     return {
       ...analysis,
       aiNotes:
-        "Heuristic analysis complete. Add an OpenAI API key to generate richer architecture and product behavior explanations.",
+        "Heuristic analysis complete. Add an OpenAI or Azure OpenAI API key to generate richer architecture and product behavior explanations.",
     };
   }
 
@@ -365,7 +365,7 @@ async function enrichWithOpenAI(
     const modelsToTry = [ANALYSIS_MODEL, ...ANALYSIS_FALLBACK_MODELS].filter(
       (model, index, list) => list.indexOf(model) === index,
     );
-    const raw = await generateWithFallback(modelsToTry, prompt, key);
+    const raw = await generateWithFallback(modelsToTry, prompt, key || "");
     const parsed = safeParseJson(raw);
 
     return {
