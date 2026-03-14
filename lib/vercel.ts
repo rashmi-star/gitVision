@@ -14,17 +14,20 @@ function parseGithubRepo(repositoryUrl: string): { owner: string; repo: string }
   return { owner: match[1], repo: match[2].replace(/\/$/, "") };
 }
 
+/** Single project for all deployments - same URL, latest repo each time */
+const PREVIEW_PROJECT = process.env.VERCEL_PREVIEW_PROJECT || "gitvision-preview";
+
 /** Vercel project names: lowercase, max 100 chars, letters/digits/._- only, no '---' */
-function toVercelProjectName(repo: string): string {
-  let name = repo
+function toVercelProjectName(name: string): string {
+  let normalized = name
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-  if (name.includes("---")) {
-    name = name.replace(/---+/g, "--");
+  if (normalized.includes("---")) {
+    normalized = normalized.replace(/---+/g, "--");
   }
-  return name.slice(0, 100) || "project";
+  return normalized.slice(0, 100) || "project";
 }
 
 /** Disable deployment protection so preview URLs are publicly accessible. */
@@ -71,15 +74,19 @@ export async function deployToVercel(
   }
 
   try {
-    const endpoint = `${VERCEL_API}/deployments?skipAutoDetectionConfirmation=1`;
-    const response = await fetch(endpoint, {
+    const teamId = process.env.VERCEL_TEAM_ID;
+    const deployUrl = new URL(`${VERCEL_API}/deployments`);
+    deployUrl.searchParams.set("skipAutoDetectionConfirmation", "1");
+    if (teamId) deployUrl.searchParams.set("teamId", teamId);
+    const response = await fetch(deployUrl.toString(), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${vercelToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: toVercelProjectName(repo.repo),
+        name: toVercelProjectName(PREVIEW_PROJECT),
+        target: "production",
         gitSource: {
           type: "github",
           ref,
@@ -103,13 +110,21 @@ export async function deployToVercel(
     }
 
     const deploymentId = data.id ?? "";
-    const status = data.state ?? "QUEUED";
-    const url = data.url ? `https://${data.url}` : "";
+    const projectName = toVercelProjectName(PREVIEW_PROJECT);
+
+    // Wait for build to complete before returning URL
+    const waitResult = await waitForDeploymentReady(deploymentId, vercelToken);
+    if (!waitResult.ok) {
+      return { ok: false, error: waitResult.error };
+    }
 
     // Disable deployment protection so preview URLs are publicly accessible
-    await disableDeploymentProtection(toVercelProjectName(repo.repo), vercelToken);
+    await disableDeploymentProtection(projectName, vercelToken);
 
-    return { ok: true, url, status, deploymentId };
+    // Same URL every time - always shows latest deployment (override for teams: VERCEL_PREVIEW_URL)
+    const url = process.env.VERCEL_PREVIEW_URL || `https://${projectName}.vercel.app`;
+
+    return { ok: true, url, status: "READY", deploymentId };
   } catch (err) {
     return {
       ok: false,
@@ -146,20 +161,44 @@ export async function deployFromDirectory(
   }
 }
 
+const DEPLOY_POLL_INTERVAL_MS = 5000;
+const DEPLOY_TIMEOUT_MS = 600_000; // 10 min
+
 export async function getDeploymentStatus(
   deploymentId: string,
   vercelToken: string,
-): Promise<{ status: string; url?: string }> {
+): Promise<{ status: string; readyState?: string; url?: string }> {
   try {
-    const response = await fetch(`${VERCEL_API}/deployments/${deploymentId}`, {
+    const teamId = process.env.VERCEL_TEAM_ID;
+    const url = new URL(`${VERCEL_API}/deployments/${deploymentId}`);
+    if (teamId) url.searchParams.set("teamId", teamId);
+    const response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${vercelToken}` },
     });
-    const data = (await response.json()) as { state?: string; url?: string };
+    const data = (await response.json()) as { state?: string; readyState?: string; url?: string };
     return {
       status: data.state ?? "UNKNOWN",
+      readyState: data.readyState,
       url: data.url ? `https://${data.url}` : undefined,
     };
   } catch {
     return { status: "UNKNOWN" };
   }
+}
+
+async function waitForDeploymentReady(
+  deploymentId: string,
+  vercelToken: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const start = Date.now();
+  while (Date.now() - start < DEPLOY_TIMEOUT_MS) {
+    const { status, readyState } = await getDeploymentStatus(deploymentId, vercelToken);
+    const state = readyState ?? status;
+    if (state === "READY") return { ok: true };
+    if (state === "ERROR" || state === "CANCELED") {
+      return { ok: false, error: `Build failed (${state})` };
+    }
+    await new Promise((r) => setTimeout(r, DEPLOY_POLL_INTERVAL_MS));
+  }
+  return { ok: false, error: "Build timed out" };
 }

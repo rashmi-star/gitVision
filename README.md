@@ -36,6 +36,9 @@ Optional model overrides:
 
    - `VERCEL_TOKEN`: Create at [vercel.com/account/tokens](https://vercel.com/account/tokens)
    - The GitHub repo must be accessible to your Vercel account (GitHub integration)
+   - All deployments use one project (`VERCEL_PREVIEW_PROJECT`, default `gitvision-preview`)—same URL, latest repo each time
+   - `VERCEL_TEAM_ID`: Required if using a Vercel team
+   - `VERCEL_PREVIEW_URL`: Override the preview URL (e.g. for teams: `https://gitvision-preview-yourteam.vercel.app`)
 
 4. Run development server:
 
