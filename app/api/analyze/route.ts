@@ -2,12 +2,19 @@ import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { simpleGit } from "simple-git";
+import AdmZip from "adm-zip";
 import { z } from "zod";
 
 import { generateTextWithFallback, hasAIConfig } from "@/lib/openai";
 import type { AnalyzeResponse } from "@/lib/types";
 import { deployToVercel } from "@/lib/vercel";
+
+function parseGithubRepo(repositoryUrl: string): { owner: string; repo: string } | null {
+  const normalized = repositoryUrl.replace(/\.git$/i, "").trim();
+  const match = normalized.match(/github\.com[/:]([^/]+)\/([^/]+)/i);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2].replace(/\/$/, "") };
+}
 
 const requestSchema = z.object({
   repositoryUrl: z.string().url(),
@@ -44,11 +51,9 @@ export async function POST(request: Request) {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "gitvision-job-"));
 
   try {
-    const git = simpleGit();
-    await git.clone(repositoryUrl, tempRoot, ["--depth", "1"]);
-    const repositoryRef = await detectRepositoryRef(tempRoot);
+    const { repositoryRef, repoRoot } = await fetchRepoFromGitHub(repositoryUrl, tempRoot);
 
-    const scan = await scanRepository(tempRoot);
+    const scan = await scanRepository(repoRoot);
     const base = buildHeuristicAnalysis(
       repositoryUrl,
       deploymentUrl || undefined,
@@ -311,15 +316,34 @@ function buildHeuristicAnalysis(
   };
 }
 
-async function detectRepositoryRef(clonePath: string) {
-  try {
-    const git = simpleGit(clonePath);
-    const ref = (await git.raw(["symbolic-ref", "refs/remotes/origin/HEAD"])).trim();
-    const parts = ref.split("/");
-    return parts[parts.length - 1] || "main";
-  } catch {
-    return "main";
-  }
+/** Fetch repo from GitHub archive (no git binary required - works on Vercel). */
+async function fetchRepoFromGitHub(
+  repositoryUrl: string,
+  tempRoot: string,
+): Promise<{ repositoryRef: string; repoRoot: string }> {
+  const repo = parseGithubRepo(repositoryUrl);
+  if (!repo) throw new Error("Invalid GitHub repository URL");
+
+  const apiRes = await fetch(`https://api.github.com/repos/${repo.owner}/${repo.repo}`, {
+    headers: { Accept: "application/vnd.github.v3+json" },
+  });
+  if (!apiRes.ok) throw new Error("Repository not found or inaccessible");
+  const apiData = (await apiRes.json()) as { default_branch?: string };
+  const defaultBranch = apiData.default_branch || "main";
+
+  const archiveUrl = `https://github.com/${repo.owner}/${repo.repo}/archive/${defaultBranch}.zip`;
+  const zipRes = await fetch(archiveUrl);
+  if (!zipRes.ok) throw new Error("Failed to download repository");
+
+  const buffer = Buffer.from(await zipRes.arrayBuffer());
+  const zip = new AdmZip(buffer);
+  zip.extractAllTo(tempRoot, true);
+
+  const entries = await readdir(tempRoot);
+  const extractedDir = entries.find((e) => !e.startsWith("."));
+  const repoRoot = extractedDir ? path.join(tempRoot, extractedDir) : tempRoot;
+
+  return { repositoryRef: defaultBranch, repoRoot };
 }
 
 async function enrichWithOpenAI(
@@ -801,13 +825,6 @@ function inferPreviewUrl(
   }
 
   return { url: undefined, source: "No reliable deployment URL found in repository files" };
-}
-
-function parseGithubRepo(repositoryUrl: string) {
-  const normalized = repositoryUrl.replace(/\.git$/i, "");
-  const match = normalized.match(/github\.com[/:]([^/]+)\/([^/]+)/i);
-  if (!match) return null;
-  return { owner: match[1], repo: match[2] };
 }
 
 function buildRepoAssetUrls(repositoryUrl: string, repositoryRef: string, files: string[]) {
