@@ -163,10 +163,11 @@
 }
 
 .gitvision-modal-flowchart {
-  width: 98vw;
-  height: 98vh;
-  max-width: none;
-  max-height: none;
+  width: min(90vw, 900px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .gitvision-modal-video {
@@ -222,6 +223,8 @@
 .gitvision-modal-flowchart .gitvision-modal-body {
   padding: 12px;
   overflow: auto;
+  flex: 1;
+  min-height: 0;
   justify-content: flex-start;
   align-items: flex-start;
 }
@@ -230,16 +233,8 @@
   width: 100%;
   max-width: 100%;
   height: auto;
-  min-height: 500px;
   display: block;
   object-fit: contain;
-}
-
-.gitvision-modal-flowchart .gitvision-flowchart-img {
-  width: 100%;
-  min-height: 85vh;
-  object-fit: contain;
-  display: block;
 }
 
 .gitvision-modal-loading,
