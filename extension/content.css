@@ -9,98 +9,108 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
   color: #fff;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(79, 70, 229, 0.9) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.45);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gitvision-github-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .gitvision-floating-btn:hover {
   transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 6px 24px rgba(14, 165, 233, 0.55);
 }
 
 .gitvision-floating-btn:active {
   transform: scale(0.98);
 }
 
-/* Menu modal */
-.gitvision-modal-menu {
-  width: min(90vw, 320px);
-  max-height: 85vh;
+/* Menu - full viewport overlay so nothing clips it */
+.gitvision-semicircle-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  overflow: visible;
+  pointer-events: none;
 }
 
-.gitvision-modal-body-menu {
-  padding: 16px;
+.gitvision-semicircle-menu > * {
+  pointer-events: auto;
 }
 
-.gitvision-menu-grid {
+.gitvision-semicircle-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.gitvision-menu-box {
+  position: fixed;
+  left: 24px;
+  bottom: 80px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 180px;
 }
 
-.gitvision-menu-item {
+.gitvision-menu-box-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 16px 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e2e8f0;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  color: #e2e8f0;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.gitvision-menu-item:hover {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.3);
+.gitvision-menu-box-item:hover {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(14, 165, 233, 0.3);
 }
 
-.gitvision-menu-icon {
-  font-size: 24px;
+.gitvision-menu-box-icon {
+  font-size: 20px;
+  line-height: 1;
 }
 
-.gitvision-menu-label {
+.gitvision-menu-box-label {
   font-size: 12px;
-  font-weight: 500;
-}
-
-.gitvision-menu-result {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 0;
-}
-
-.gitvision-menu-result-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.gitvision-menu-item-sm {
-  flex-direction: row;
-  padding: 10px 16px;
-}
-
-.gitvision-menu-back {
-  background: none;
-  border: none;
   color: #94a3b8;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 8px 0;
 }
 
-.gitvision-menu-back:hover {
+.gitvision-menu-box-item:hover .gitvision-menu-box-label {
   color: #e2e8f0;
+}
+
+.gitvision-menu-box-shortcut {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.gitvision-menu-box-item:hover .gitvision-menu-box-shortcut {
+  color: #94a3b8;
 }
 
 .gitvision-deploy-wrapper {
@@ -253,6 +263,17 @@
   padding: 20px;
 }
 
+.gitvision-modal-overlay-transparent {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.gitvision-modal-transparent {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .gitvision-modal {
   background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -268,8 +289,8 @@
 }
 
 .gitvision-modal-flowchart {
-  width: min(90vw, 900px);
-  max-height: 85vh;
+  width: min(90vw, 480px);
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -335,9 +356,10 @@
 }
 
 .gitvision-flowchart-img {
-  width: 100%;
   max-width: 100%;
+  width: auto;
   height: auto;
+  max-height: 60vh;
   display: block;
   object-fit: contain;
 }
@@ -520,6 +542,108 @@
 
 .gitvision-related-link:hover {
   text-decoration: underline;
+}
+
+/* Deploy toast - bottom-right */
+.gitvision-deploy-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483646;
+  padding: 14px 18px;
+  min-width: 260px;
+  max-width: 380px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.gitvision-deploy-toast-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.gitvision-deploy-toast-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #0ea5e9;
+  border-radius: 50%;
+  animation: gitvision-spin 0.7s linear infinite;
+}
+
+.gitvision-deploy-toast-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gitvision-deploy-toast-result {
+  position: relative;
+}
+
+.gitvision-deploy-success {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+}
+
+.gitvision-deploy-link {
+  color: #0ea5e9;
+  font-size: 13px;
+  word-break: break-all;
+  text-decoration: none;
+}
+
+.gitvision-deploy-link:hover {
+  text-decoration: underline;
+}
+
+.gitvision-deploy-copy {
+  align-self: flex-start;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: #0ea5e9;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gitvision-deploy-copy:hover {
+  background: #0284c7;
+}
+
+.gitvision-deploy-toast-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.gitvision-deploy-toast-close:hover {
+  color: #e2e8f0;
+}
+
+.gitvision-deploy-toast-error p {
+  color: #f87171;
+  font-size: 13px;
+  margin: 0;
 }
 
 @keyframes gitvision-spin {

@@ -40,12 +40,12 @@
     }
     const modal = document.createElement("div");
     modal.id = "gitvision-flowchart-modal";
-    modal.className = "gitvision-modal-overlay";
+    modal.className = "gitvision-modal-overlay gitvision-modal-overlay-transparent";
     const bodyContent = isLoading
       ? '<div class="gitvision-modal-loading">Loading flowchart...</div>'
       : `<img src="https://mermaid.ink/svg/${toBase64Url(mermaidCode)}" alt="Flowchart" class="gitvision-flowchart-img" />`;
     modal.innerHTML = `
-      <div class="gitvision-modal gitvision-modal-flowchart">
+      <div class="gitvision-modal gitvision-modal-flowchart gitvision-modal-transparent">
         <div class="gitvision-modal-header">
           <span>Architecture Flowchart</span>
           <button type="button" class="gitvision-modal-close" title="Close">×</button>
@@ -71,9 +71,9 @@
     }
     const modal = document.createElement("div");
     modal.id = "gitvision-related-modal";
-    modal.className = "gitvision-modal-overlay";
+    modal.className = "gitvision-modal-overlay gitvision-modal-overlay-transparent";
     modal.innerHTML = `
-      <div class="gitvision-modal gitvision-modal-summary">
+      <div class="gitvision-modal gitvision-modal-summary gitvision-modal-transparent">
         <div class="gitvision-modal-header">
           <span>Related Repos (Ctrl+R)</span>
           <button type="button" class="gitvision-modal-close" title="Close">×</button>
@@ -117,6 +117,63 @@
       });
   }
 
+  function showDeployModal(appUrl, repoUrl) {
+    const existing = document.getElementById("gitvision-deploy-toast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "gitvision-deploy-toast";
+    toast.className = "gitvision-deploy-toast";
+    toast.innerHTML = `
+      <div class="gitvision-deploy-toast-loading">
+        <span class="gitvision-deploy-toast-spinner"></span>
+        <span>Deploying...</span>
+      </div>
+    `;
+    document.body.appendChild(toast);
+
+    const apiUrl = `${appUrl.replace(/\/$/, "")}/api/analyze`;
+    chrome.runtime.sendMessage({ type: "GITVISION_DEPLOY", apiUrl, repositoryUrl: repoUrl })
+      .then((result) => {
+        const { data } = result || {};
+        const url = data?.vercelDeployment?.url;
+        const error = data?.error;
+        if (url && !error) {
+          toast.innerHTML = `
+            <div class="gitvision-deploy-toast-result">
+              <p class="gitvision-deploy-success">✓ Deployed to Vercel</p>
+              <a href="${url}" target="_blank" rel="noopener noreferrer" class="gitvision-deploy-link">${url}</a>
+              <button type="button" class="gitvision-deploy-copy">Copy</button>
+              <button type="button" class="gitvision-deploy-toast-close" title="Close">×</button>
+            </div>
+          `;
+          toast.querySelector(".gitvision-deploy-copy")?.addEventListener("click", () => {
+            navigator.clipboard.writeText(url);
+            const btn = toast.querySelector(".gitvision-deploy-copy");
+            if (btn) { btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = "Copy"; }, 1500); }
+          });
+          toast.querySelector(".gitvision-deploy-toast-close")?.addEventListener("click", () => toast.remove());
+        } else {
+          toast.innerHTML = `
+            <div class="gitvision-deploy-toast-result gitvision-deploy-toast-error">
+              <p>${(error || "Deployment failed").replace(/</g, "&lt;")}</p>
+              <button type="button" class="gitvision-deploy-toast-close" title="Close">×</button>
+            </div>
+          `;
+          toast.querySelector(".gitvision-deploy-toast-close")?.addEventListener("click", () => toast.remove());
+        }
+      })
+      .catch((err) => {
+        toast.innerHTML = `
+          <div class="gitvision-deploy-toast-result gitvision-deploy-toast-error">
+            <p>${(err?.message || "Failed to deploy").replace(/</g, "&lt;")}</p>
+            <button type="button" class="gitvision-deploy-toast-close" title="Close">×</button>
+          </div>
+        `;
+        toast.querySelector(".gitvision-deploy-toast-close")?.addEventListener("click", () => toast.remove());
+      });
+  }
+
   function showVideoModal(appUrl, repoUrl) {
     const existing = document.getElementById("gitvision-video-modal");
     if (existing) {
@@ -151,9 +208,9 @@
     }
     const modal = document.createElement("div");
     modal.id = "gitvision-summary-modal";
-    modal.className = "gitvision-modal-overlay";
+    modal.className = "gitvision-modal-overlay gitvision-modal-overlay-transparent";
     modal.innerHTML = `
-      <div class="gitvision-modal gitvision-modal-summary">
+      <div class="gitvision-modal gitvision-modal-summary gitvision-modal-transparent">
         <div class="gitvision-modal-header">
           <span>Project Summary</span>
           <button type="button" class="gitvision-modal-close" title="Close">×</button>
@@ -236,8 +293,16 @@
     });
   }
 
-  function showMenuModal(repoUrl) {
-    const existing = document.getElementById("gitvision-menu-modal");
+  const MENU_ITEMS = [
+    { action: "preview", icon: "🔗", label: "Preview", shortcut: "Ctrl+P", title: "Preview & deploy" },
+    { action: "flowchart", icon: "📊", label: "Flowchart", shortcut: "Ctrl+F", title: "Architecture flowchart" },
+    // { action: "video", icon: "🎬", label: "Video", title: "Demo video" },
+    { action: "summary", icon: "📋", label: "Summary", shortcut: "Ctrl+G", title: "Project summary" },
+    { action: "related", icon: "📁", label: "Related", shortcut: "Ctrl+R", title: "Related repos" },
+  ];
+
+  function showSemiCircleMenu(repoUrl) {
+    const existing = document.getElementById("gitvision-semicircle-menu");
     if (existing) {
       existing.remove();
       return;
@@ -245,98 +310,38 @@
 
     let cachedFlowchart = DEFAULT_FLOWCHART;
 
-    const modal = document.createElement("div");
-    modal.id = "gitvision-menu-modal";
-    modal.className = "gitvision-modal-overlay";
-    modal.innerHTML = `
-      <div class="gitvision-modal gitvision-modal-menu">
-        <div class="gitvision-modal-header">
-          <span>GitVision</span>
-          <button type="button" class="gitvision-modal-close" title="Close">×</button>
-        </div>
-        <div class="gitvision-modal-body gitvision-modal-body-menu">
-          <div class="gitvision-menu-grid">
-            <button type="button" class="gitvision-menu-item" data-action="preview" title="Preview & deploy">
-              <span class="gitvision-menu-icon">🔗</span>
-              <span class="gitvision-menu-label">Preview</span>
-            </button>
-            <button type="button" class="gitvision-menu-item" data-action="flowchart" title="Architecture flowchart">
-              <span class="gitvision-menu-icon">📊</span>
-              <span class="gitvision-menu-label">Flowchart</span>
-            </button>
-            <button type="button" class="gitvision-menu-item" data-action="video" title="Demo video">
-              <span class="gitvision-menu-icon">🎬</span>
-              <span class="gitvision-menu-label">Video</span>
-            </button>
-            <button type="button" class="gitvision-menu-item" data-action="summary" title="Project summary (Ctrl+G)">
-              <span class="gitvision-menu-icon">📋</span>
-              <span class="gitvision-menu-label">Summary</span>
-            </button>
-            <button type="button" class="gitvision-menu-item" data-action="related" title="Related repos (Ctrl+R)">
-              <span class="gitvision-menu-icon">📁</span>
-              <span class="gitvision-menu-label">Related</span>
-            </button>
-          </div>
-        </div>
+    const menu = document.createElement("div");
+    menu.id = "gitvision-semicircle-menu";
+    menu.className = "gitvision-semicircle-menu";
+    menu.innerHTML = `
+      <div class="gitvision-semicircle-backdrop"></div>
+      <div class="gitvision-menu-box">
+        ${MENU_ITEMS.map((item) => `
+          <button type="button" class="gitvision-menu-box-item" data-action="${item.action}" title="${item.title}">
+            <span class="gitvision-menu-box-icon">${item.icon}</span>
+            <span class="gitvision-menu-box-label">${item.label}${item.shortcut ? ` <span class="gitvision-menu-box-shortcut">${item.shortcut}</span>` : ""}</span>
+          </button>
+        `).join("")}
       </div>
     `;
 
-    const body = modal.querySelector(".gitvision-modal-body-menu");
-    const renderMenu = () => {
-      body.innerHTML = `
-        <div class="gitvision-menu-grid">
-          <button type="button" class="gitvision-menu-item" data-action="preview" title="Preview & deploy">
-            <span class="gitvision-menu-icon">🔗</span>
-            <span class="gitvision-menu-label">Preview</span>
-          </button>
-          <button type="button" class="gitvision-menu-item" data-action="flowchart" title="Architecture flowchart">
-            <span class="gitvision-menu-icon">📊</span>
-            <span class="gitvision-menu-label">Flowchart</span>
-          </button>
-          <button type="button" class="gitvision-menu-item" data-action="video" title="Demo video">
-            <span class="gitvision-menu-icon">🎬</span>
-            <span class="gitvision-menu-label">Video</span>
-          </button>
-          <button type="button" class="gitvision-menu-item" data-action="summary" title="Project summary (Ctrl+G)">
-            <span class="gitvision-menu-icon">📋</span>
-            <span class="gitvision-menu-label">Summary</span>
-          </button>
-          <button type="button" class="gitvision-menu-item" data-action="related" title="Related repos (Ctrl+R)">
-            <span class="gitvision-menu-icon">📁</span>
-            <span class="gitvision-menu-label">Related</span>
-          </button>
-        </div>
-      `;
-      attachMenuHandlers();
-    };
-
-    const attachMenuHandlers = () => {
-      body.querySelectorAll(".gitvision-menu-item").forEach((btn) => {
-        btn.addEventListener("click", onClick);
-      });
-    };
-
-    const onClick = async (e) => {
-      const action = e.currentTarget.getAttribute("data-action");
+    const runAction = async (action) => {
       const appUrl = await getAppUrl();
+      menu.remove();
 
       if (action === "summary") {
-        modal.remove();
         showSummaryModal(appUrl, repoUrl);
         return;
       }
       if (action === "related") {
-        modal.remove();
         showRelatedReposModal(appUrl, repoUrl);
         return;
       }
-      if (action === "video") {
-        modal.remove();
-        showVideoModal(appUrl, repoUrl);
-        return;
-      }
+      // if (action === "video") {
+      //   showVideoModal(appUrl, repoUrl);
+      //   return;
+      // }
       if (action === "flowchart") {
-        modal.remove();
         showFlowchartModal(DEFAULT_FLOWCHART, true);
         const apiUrl = `${appUrl.replace(/\/$/, "")}/api/analyze`;
         try {
@@ -359,78 +364,19 @@
         return;
       }
       if (action === "preview") {
-        body.innerHTML = '<div class="gitvision-modal-loading">Analyzing & deploying...</div>';
-        const apiUrl = `${appUrl.replace(/\/$/, "")}/api/analyze`;
-        chrome.runtime.sendMessage({
-          type: "GITVISION_DEPLOY",
-          apiUrl,
-          repositoryUrl: repoUrl,
-        }).then((result) => {
-          const { ok, data } = result || {};
-          if (!ok || !data) {
-            cachedFlowchart = (data && data.flowChartMermaid?.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
-            body.innerHTML = `
-              <div class="gitvision-menu-result">
-                <p class="gitvision-modal-error">${(data?.error || "Failed to fetch").replace(/</g, "&lt;")}</p>
-                <button type="button" class="gitvision-menu-back">← Back</button>
-              </div>
-            `;
-            body.querySelector(".gitvision-menu-back").addEventListener("click", renderMenu);
-            return;
-          }
-          if (data.error) {
-            cachedFlowchart = (data.flowChartMermaid?.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
-            body.innerHTML = `
-              <div class="gitvision-menu-result">
-                <p class="gitvision-modal-error">${(data.error || "").replace(/</g, "&lt;")}</p>
-                <button type="button" class="gitvision-menu-back">← Back</button>
-              </div>
-            `;
-            body.querySelector(".gitvision-menu-back").addEventListener("click", renderMenu);
-            return;
-          }
-          const url = data.vercelDeployment?.url || `${appUrl}/studio?repo=${encodeURIComponent(repoUrl)}`;
-          cachedFlowchart = (data.flowChartMermaid?.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
-          body.innerHTML = `
-            <div class="gitvision-menu-result">
-              <a href="${url}" target="_blank" rel="noopener noreferrer" class="gitvision-deploy-btn gitvision-deploy-btn-card gitvision-menu-preview-btn">
-                <span class="gitvision-deploy-btn-icon">🔗</span>
-                <span class="gitvision-deploy-btn-text">Open Preview</span>
-              </a>
-              <div class="gitvision-menu-result-actions">
-                <button type="button" class="gitvision-menu-item gitvision-menu-item-sm" data-action="flowchart">📊 Flowchart</button>
-                <button type="button" class="gitvision-menu-item gitvision-menu-item-sm" data-action="video">🎬 Video</button>
-              </div>
-              <button type="button" class="gitvision-menu-back">← Back</button>
-            </div>
-          `;
-          body.querySelector(".gitvision-menu-preview-btn").addEventListener("click", () => modal.remove());
-          body.querySelector("[data-action='flowchart']").addEventListener("click", () => {
-            modal.remove();
-            showFlowchartModal(cachedFlowchart, false);
-          });
-          body.querySelector("[data-action='video']").addEventListener("click", () => {
-            modal.remove();
-            showVideoModal(appUrl, repoUrl);
-          });
-          body.querySelector(".gitvision-menu-back").addEventListener("click", renderMenu);
-        }).catch((err) => {
-          body.innerHTML = `
-            <div class="gitvision-menu-result">
-              <p class="gitvision-modal-error">${(err?.message || "Failed to fetch").replace(/</g, "&lt;")}</p>
-              <button type="button" class="gitvision-menu-back">← Back</button>
-            </div>
-          `;
-          body.querySelector(".gitvision-menu-back").addEventListener("click", renderMenu);
-        });
+        showDeployModal(appUrl, repoUrl);
       }
     };
 
-    attachMenuHandlers();
+    menu.querySelector(".gitvision-semicircle-backdrop").addEventListener("click", () => menu.remove());
+    menu.querySelectorAll(".gitvision-menu-box-item").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        runAction(btn.getAttribute("data-action"));
+      });
+    });
 
-    modal.querySelector(".gitvision-modal-close").addEventListener("click", () => modal.remove());
-    modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
-    document.body.appendChild(modal);
+    document.body.appendChild(menu);
   }
 
   function injectFloatingButton() {
@@ -442,12 +388,12 @@
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "gitvision-floating-btn";
-    btn.title = "GitVision (Ctrl+G summary, Ctrl+R related)";
-    btn.innerHTML = "✨";
+    btn.title = "GitVision (Ctrl+G summary, Ctrl+R related, Ctrl+P preview, Ctrl+F flowchart)";
+    btn.innerHTML = `<svg class="gitvision-github-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      showMenuModal(repoUrl);
+      showSemiCircleMenu(repoUrl);
     });
     document.body.appendChild(btn);
   }
@@ -456,12 +402,35 @@
     if (!(e.ctrlKey || e.metaKey)) return;
     const repoUrl = getRepoUrl();
     if (!repoUrl) return;
-    if (e.key === "g") {
+    const key = e.key?.toLowerCase();
+    if (key === "g") {
       e.preventDefault();
       getAppUrl().then((appUrl) => showSummaryModal(appUrl, repoUrl));
-    } else if (e.key === "r") {
+    } else if (key === "r") {
       e.preventDefault();
       getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
+    } else if (key === "p") {
+      e.preventDefault();
+      getAppUrl().then((appUrl) => showDeployModal(appUrl, repoUrl));
+    } else if (key === "f") {
+      e.preventDefault();
+      getAppUrl().then((appUrl) => {
+        showFlowchartModal(DEFAULT_FLOWCHART, true);
+        const apiUrl = `${appUrl.replace(/\/$/, "")}/api/analyze`;
+        chrome.runtime.sendMessage({ type: "GITVISION_DEPLOY", apiUrl, repositoryUrl: repoUrl, deployToVercel: false })
+          .then((result) => {
+            const { data } = result || {};
+            const mermaid = (data?.flowChartMermaid?.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
+            updateFlowchartModal(mermaid);
+          })
+          .catch((err) => {
+            const fm = document.getElementById("gitvision-flowchart-modal");
+            if (fm) {
+              const bodyEl = fm.querySelector(".gitvision-modal-body");
+              if (bodyEl) bodyEl.innerHTML = `<p class="gitvision-modal-error">${(err?.message || "Failed to load flowchart").replace(/</g, "&lt;")}</p>`;
+            }
+          });
+      });
     }
   });
 
