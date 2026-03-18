@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 
 const DemoVideoPlayer = dynamic(
   () => import("@/components/demo-video-player").then((m) => ({ default: m.DemoVideoPlayer })),
-  { ssr: false, loading: () => <div className="flex h-64 items-center justify-center bg-[#0c0c0c] text-slate-400">Loading video...</div> },
+  { ssr: false, loading: () => <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c] text-slate-400">Loading video...</div> },
 );
 
 function StudioVideoContent() {
@@ -71,7 +71,7 @@ function StudioVideoContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center bg-[#0c0c0c]">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c]">
         <div className="flex flex-col items-center gap-4">
           <div className="size-10 animate-spin rounded-full border-2 border-indigo-500/30 border-t-indigo-400" />
           <p className="text-slate-400">Generating video...</p>
@@ -81,22 +81,22 @@ function StudioVideoContent() {
   }
   if (error) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center bg-[#0c0c0c] p-6">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c] p-6">
         <p className="text-red-400">{error}</p>
       </div>
     );
   }
   if (!scenes?.length) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center bg-[#0c0c0c]">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c]">
         <p className="text-slate-400">No scenes generated</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] p-4">
-      <div className="mx-auto max-w-4xl">
+    <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c] p-2">
+      <div className="w-full max-w-[1280px]">
         <DemoVideoPlayer scenes={scenes} />
       </div>
     </div>
@@ -107,7 +107,7 @@ export default function StudioVideoPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[400px] items-center justify-center bg-[#0c0c0c]">
+        <div className="flex min-h-screen w-full items-center justify-center bg-[#0c0c0c]">
           <div className="size-10 animate-spin rounded-full border-2 border-indigo-500/30 border-t-indigo-400" />
         </div>
       }
