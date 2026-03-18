@@ -1,3 +1,108 @@
+/* Floating button bottom-left */
+.gitvision-floating-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 999998;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(79, 70, 229, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gitvision-floating-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+}
+
+.gitvision-floating-btn:active {
+  transform: scale(0.98);
+}
+
+/* Menu modal */
+.gitvision-modal-menu {
+  width: min(90vw, 320px);
+  max-height: 85vh;
+}
+
+.gitvision-modal-body-menu {
+  padding: 16px;
+}
+
+.gitvision-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.gitvision-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gitvision-menu-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.gitvision-menu-icon {
+  font-size: 24px;
+}
+
+.gitvision-menu-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.gitvision-menu-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.gitvision-menu-result-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.gitvision-menu-item-sm {
+  flex-direction: row;
+  padding: 10px 16px;
+}
+
+.gitvision-menu-back {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.gitvision-menu-back:hover {
+  color: #e2e8f0;
+}
+
 .gitvision-deploy-wrapper {
   margin-right: 8px;
   display: inline-flex;
