@@ -1,6 +1,6 @@
 "use client";
 
-import { AbsoluteFill, Html5Video, Sequence, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from "remotion";
 import { Player } from "@remotion/player";
 
 
@@ -91,18 +91,11 @@ function DemoVideo({ scenes }: DemoVideoPlayerProps) {
 
   return (
     <AbsoluteFill>
-      <AbsoluteFill>
-        <Html5Video
-          src={staticFile("/background.mp4")}
-          loop
-          muted
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-          }}
-        />
-      </AbsoluteFill>
+      <AbsoluteFill
+        style={{
+          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+        }}
+      />
       {parsed.map((scene, index) => (
           <Sequence key={index} from={index * SCENE_FRAMES} durationInFrames={SCENE_FRAMES}>
             <SceneCard scene={scene} />

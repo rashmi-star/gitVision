@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, ExternalLink, GitBranch, Layout, Link2, Loader2, Search, Sparkles, Video } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,17 @@ type DemoScriptResponse = {
   sceneTypes?: string[];
 };
 
-export default function StudioPage() {
+function normalizeRepoUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (/^[^/]+\/[^/]+$/.test(trimmed)) return `https://github.com/${trimmed}`;
+  if (!/^https?:\/\//i.test(trimmed)) return `https://${trimmed}`;
+  return trimmed;
+}
+
+function StudioPageContent() {
+  const searchParams = useSearchParams();
+  const videoMode = searchParams.get("mode") === "video";
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [submittedUrl, setSubmittedUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +42,7 @@ export default function StudioPage() {
   const [loadingScript, setLoadingScript] = useState(false);
   const [vercelDeployment, setVercelDeployment] = useState<{ url: string; status: string } | null>(null);
   const [vercelDeployLoading, setVercelDeployLoading] = useState(false);
+  const hasAutoAnalyzed = useRef(false);
 
   const previewLink = vercelDeployment?.url?.trim() || result?.previewUrl?.trim() || "";
   const hasResult = Boolean(result);
@@ -40,9 +52,10 @@ export default function StudioPage() {
     return `https://mermaid.ink/svg/${toBase64Url(result.flowChartMermaid)}`;
   }, [result]);
 
-  async function analyzeRepository() {
-    if (!repositoryUrl.trim()) return;
-    const trimmedUrl = repositoryUrl.trim();
+  const analyzeRepository = useCallback(async (urlOverride?: string) => {
+    const urlToUse = urlOverride ?? repositoryUrl;
+    const trimmedUrl = normalizeRepoUrl(urlToUse);
+    if (!trimmedUrl) return;
 
     setIsLoading(true);
     setError("");
@@ -58,7 +71,7 @@ export default function StudioPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repositoryUrl: trimmedUrl,
-          deployToVercel: true,
+          deployToVercel: !videoMode,
         }),
       });
       const body = (await response.json()) as AnalyzeResponse & { error?: string };
@@ -72,7 +85,22 @@ export default function StudioPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [repositoryUrl]);
+
+  useEffect(() => {
+    const repoParam = searchParams.get("repo");
+    if (!repoParam || hasAutoAnalyzed.current) return;
+    const url = normalizeRepoUrl(decodeURIComponent(repoParam));
+    if (url && /github\.com/i.test(url)) {
+      hasAutoAnalyzed.current = true;
+      void analyzeRepository(url);
+    }
+  }, [searchParams, analyzeRepository]);
+
+  useEffect(() => {
+    if (!videoMode || !result || demoScript?.scenes?.length || loadingScript) return;
+    void generateDemoScript();
+  }, [videoMode, result, demoScript, loadingScript]);
 
   async function deployToVercel() {
     const repoUrl = submittedUrl || repositoryUrl;
@@ -135,6 +163,53 @@ export default function StudioPage() {
     setError("");
     setDemoScript(null);
     setVercelDeployment(null);
+  }
+
+  const repoParam = searchParams.get("repo");
+  const hasVideoRepo = Boolean(repoParam && /github\.com/i.test(normalizeRepoUrl(decodeURIComponent(repoParam || ""))));
+
+  if (videoMode && hasVideoRepo) {
+    if (isLoading || loadingScript) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-[#0c0c0c]">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="size-10 animate-spin text-indigo-400" />
+            <p className="text-slate-400">{loadingScript ? "Generating video..." : "Analyzing repository..."}</p>
+          </div>
+        </main>
+      );
+    }
+    if (error) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-[#0c0c0c] p-6">
+          <p className="text-red-400">{error}</p>
+        </main>
+      );
+    }
+    if (demoScript?.scenes?.length) {
+      return (
+        <main className="min-h-screen bg-[#0c0c0c] p-4">
+          <div className="mx-auto max-w-4xl">
+            <DemoVideoPlayer scenes={demoScript.scenes} />
+          </div>
+        </main>
+      );
+    }
+    if (result && !demoScript?.scenes?.length) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-[#0c0c0c]">
+          <p className="text-slate-400">No scenes generated</p>
+        </main>
+      );
+    }
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0c0c0c]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-10 animate-spin text-indigo-400" />
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -390,6 +465,20 @@ export default function StudioPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-[#0c0c0c]">
+          <Loader2 className="size-8 animate-spin text-indigo-400" />
+        </div>
+      }
+    >
+      <StudioPageContent />
+    </Suspense>
   );
 }
 

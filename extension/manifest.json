@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "GitVision",
+  "version": "1.0.0",
+  "description": "Analyze and deploy GitHub repos from the repo page",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://github.com/*", "https://*.vercel.app/*", "https://mermaid.ink/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Open GitVision",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

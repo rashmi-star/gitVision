@@ -34,13 +34,23 @@ const ANALYSIS_FALLBACK_MODELS = [
   process.env.OPENAI_ANALYSIS_FALLBACK_MODEL || "gpt-4o-mini",
 ];
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json());
 
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid input", details: parsed.error.flatten() },
-      { status: 400 },
+      { status: 400, headers: CORS_HEADERS },
     );
   }
 
@@ -65,27 +75,35 @@ export async function POST(request: Request) {
     const aiResult = await enrichWithOpenAI(base, scan, openaiApiKey);
 
     let vercelDeployment: AnalyzeResponse["vercelDeployment"] | undefined;
+    let vercelDeployError: string | undefined;
 
-    if (shouldDeploy && aiResult.vercelDeployable && vercelToken) {
-      const deployResult = await deployToVercel(repositoryUrl, repositoryRef, vercelToken);
-      if (deployResult.ok) {
-        vercelDeployment = {
-          url: deployResult.url,
-          deploymentId: deployResult.deploymentId,
-          status: deployResult.status,
-          timestamp: new Date().toISOString(),
-        };
+    if (shouldDeploy && aiResult.vercelDeployable) {
+      if (!vercelToken) {
+        vercelDeployError = "VERCEL_TOKEN not set. Add it to .env (get from vercel.com/account/tokens)";
+      } else {
+        const deployResult = await deployToVercel(repositoryUrl, repositoryRef, vercelToken);
+        if (deployResult.ok) {
+          vercelDeployment = {
+            url: deployResult.url,
+            deploymentId: deployResult.deploymentId,
+            status: deployResult.status,
+            timestamp: new Date().toISOString(),
+          };
+        } else {
+          vercelDeployError = deployResult.error;
+          console.warn("[gitvision] Vercel deploy failed:", deployResult.error);
+        }
       }
     }
 
-    return NextResponse.json({
-      ...aiResult,
-      vercelDeployment,
-    });
+    return NextResponse.json(
+      { ...aiResult, vercelDeployment, vercelDeployError },
+      { headers: CORS_HEADERS },
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to analyze repository." },
-      { status: 500 },
+      { status: 500, headers: CORS_HEADERS },
     );
   } finally {
     // Delete temp clone after analysis and (if applicable) Vercel deployment triggered.
