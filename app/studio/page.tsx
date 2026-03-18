@@ -171,7 +171,7 @@ function StudioPageContent() {
   if (videoMode && hasVideoRepo) {
     if (isLoading || loadingScript) {
       return (
-        <main className="flex min-h-screen items-center justify-center bg-[#0c0c0c]">
+        <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950/20 to-slate-950">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="size-10 animate-spin text-indigo-400" />
             <p className="text-slate-400">{loadingScript ? "Generating video..." : "Analyzing repository..."}</p>
@@ -354,15 +354,20 @@ function StudioPageContent() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {previewLink ? (
-                      <a
-                        href={previewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 truncate rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-blue-400 transition-all duration-200 hover:border-indigo-500/30 hover:bg-white/10"
-                      >
-                        <Link2 className="size-4 shrink-0" />
-                        <span className="truncate">{previewLink}</span>
-                      </a>
+                      <div className="space-y-3">
+                        <a
+                          href={previewLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-gradient-to-b from-white/8 to-white/4 px-5 py-3.5 text-sm font-medium text-indigo-300 transition-all duration-200 hover:border-indigo-500/40 hover:from-indigo-500/20 hover:to-indigo-500/10 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <ExternalLink className="size-4 shrink-0" />
+                          Open Preview
+                        </a>
+                        <p className="truncate rounded-md bg-black/20 px-2 py-1.5 text-xs text-slate-500" title={previewLink}>
+                          {previewLink}
+                        </p>
+                      </div>
                     ) : result.vercelDeployable ? (
                       <Button
                         onClick={deployToVercel}
@@ -452,7 +457,14 @@ function StudioPageContent() {
                       {loadingScript ? <Loader2 className="size-4 animate-spin" /> : null}
                       {loadingScript ? "Generating..." : "Generate demo video"}
                     </Button>
-                    {demoScript?.scenes?.length ? (
+                    {loadingScript && !demoScript?.scenes?.length ? (
+                      <div className="flex aspect-video w-full items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-slate-900/80 via-indigo-950/30 to-slate-900/80">
+                        <div className="flex flex-col items-center gap-3">
+                          <Loader2 className="size-10 animate-spin text-indigo-400" />
+                          <p className="text-sm text-slate-400">Generating video...</p>
+                        </div>
+                      </div>
+                    ) : demoScript?.scenes?.length ? (
                       <div className="overflow-hidden rounded-lg border border-white/10 transition-all duration-300 hover:border-white/20">
                         <DemoVideoPlayer scenes={demoScript.scenes} />
                       </div>

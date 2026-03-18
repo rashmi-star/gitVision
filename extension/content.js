@@ -51,16 +51,6 @@
     return btn;
   }
 
-  function createRelatedButton(onClick) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "gitvision-related-btn";
-    btn.title = "Related repos";
-    btn.innerHTML = "📁";
-    btn.addEventListener("click", onClick);
-    return btn;
-  }
-
   function showSpinner(wrapper) {
     wrapper.innerHTML = `
       <span class="gitvision-deploy-btn gitvision-deploy-btn-loading">
@@ -80,28 +70,25 @@
 
   const DEFAULT_FLOWCHART = "flowchart TD\n  A[Repository] --> B[Analyze]\n  B --> C[Deploy]\n  C --> D[Preview]";
 
-  function showResult(wrapper, urlOrMsg, flowChartMermaid, isError, onRetry, cachedMermaid, onVideoClick, onRelatedClick) {
+  function showResult(wrapper, urlOrMsg, flowChartMermaid, isError, onRetry, cachedMermaid, onVideoClick) {
     const mermaid = (flowChartMermaid && flowChartMermaid.trim().length > 0) ? flowChartMermaid : (cachedMermaid || DEFAULT_FLOWCHART);
-    const shortUrl = (urlOrMsg && urlOrMsg.length > 35) ? urlOrMsg.slice(0, 20) + "…" + urlOrMsg.slice(-12) : urlOrMsg;
     const deployPart = isError
       ? `<span class="gitvision-deploy-btn gitvision-deploy-btn-error" title="${(urlOrMsg || "").replace(/</g, "&lt;").replace(/"/g, "&quot;")}">
           <span class="gitvision-deploy-btn-icon">!</span>
           <span class="gitvision-deploy-btn-text">${(urlOrMsg && urlOrMsg.length > 40 ? urlOrMsg.slice(0, 37) + "…" : urlOrMsg) || "Deploy failed"}</span>
         </span>`
-      : `<a href="${urlOrMsg}" target="_blank" rel="noopener noreferrer" class="gitvision-deploy-btn gitvision-deploy-btn-link" title="${(urlOrMsg || "").replace(/"/g, "&quot;")}">
+      : `<a href="${urlOrMsg}" target="_blank" rel="noopener noreferrer" class="gitvision-deploy-btn gitvision-deploy-btn-card" title="${(urlOrMsg || "").replace(/"/g, "&quot;")}">
           <span class="gitvision-deploy-btn-icon">🔗</span>
-          <span class="gitvision-deploy-btn-text">${shortUrl}</span>
+          <span class="gitvision-deploy-btn-text">Open Preview</span>
         </a>`;
     wrapper.innerHTML = `
       ${deployPart}
       <button type="button" class="gitvision-flowchart-btn" title="View architecture flowchart">📊</button>
       <button type="button" class="gitvision-video-btn" title="Generate demo video">🎬</button>
-      <button type="button" class="gitvision-related-btn" title="Related repos">📁</button>
       ${isError && onRetry ? `<button type="button" class="gitvision-retry-btn" title="Retry">↻</button>` : ""}
     `;
     wrapper.querySelector(".gitvision-flowchart-btn").addEventListener("click", () => showFlowchartModal(mermaid, false));
     wrapper.querySelector(".gitvision-video-btn").addEventListener("click", () => onVideoClick && onVideoClick());
-    wrapper.querySelector(".gitvision-related-btn").addEventListener("click", () => onRelatedClick && onRelatedClick());
     if (isError && onRetry) {
       wrapper.querySelector(".gitvision-retry-btn").addEventListener("click", onRetry);
     }
@@ -150,7 +137,7 @@
     modal.innerHTML = `
       <div class="gitvision-modal gitvision-modal-summary">
         <div class="gitvision-modal-header">
-          <span>Related Repos</span>
+          <span>Related Repos (Ctrl+R)</span>
           <button type="button" class="gitvision-modal-close" title="Close">×</button>
         </div>
         <div class="gitvision-modal-body gitvision-modal-body-summary">
@@ -172,9 +159,18 @@
         }
         const esc = (x) => String(x || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
         body.innerHTML = `
-          <ul class="gitvision-related-list">
-            ${res.data.relatedRepos.map((r) => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" class="gitvision-related-link">${esc(r.fullName)}</a>${r.stars ? ` <span class="gitvision-related-stars">★ ${r.stars}</span>` : ""}</li>`).join("")}
-          </ul>
+          <div class="gitvision-related-cards">
+            ${res.data.relatedRepos.map((r) => `
+              <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" class="gitvision-related-card">
+                <span class="gitvision-related-card-name">${esc(r.fullName)}</span>
+                ${r.description ? `<span class="gitvision-related-card-desc">${esc(r.description.slice(0, 80))}${r.description.length > 80 ? "…" : ""}</span>` : ""}
+                <span class="gitvision-related-card-meta">
+                  ${r.stars ? `<span class="gitvision-related-stars">★ ${r.stars}</span>` : ""}
+                  ${r.language ? `<span class="gitvision-related-lang">${esc(r.language)}</span>` : ""}
+                </span>
+              </a>
+            `).join("")}
+          </div>
         `;
       })
       .catch((err) => {
@@ -252,15 +248,13 @@
           if (!ok || !data) {
             cachedFlowchart = (data && data.flowChartMermaid && data.flowChartMermaid.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
             const onVideo = () => getAppUrl().then((appUrl) => showVideoModal(appUrl, repoUrl));
-            const onRelated = () => getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
-            showResult(wrapper, (data && data.error) || "Failed to fetch. Is the app running?", data && data.flowChartMermaid, true, () => { showSpinner(wrapper); doDeploy(); }, cachedFlowchart, onVideo, onRelated);
+            showResult(wrapper, (data && data.error) || "Failed to fetch. Is the app running?", data && data.flowChartMermaid, true, () => { showSpinner(wrapper); doDeploy(); }, cachedFlowchart, onVideo);
             return;
           }
           if (data.error) {
             cachedFlowchart = (data.flowChartMermaid && data.flowChartMermaid.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
             const onVideo = () => getAppUrl().then((appUrl) => showVideoModal(appUrl, repoUrl));
-            const onRelated = () => getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
-            showResult(wrapper, data.error, data.flowChartMermaid, true, () => { showSpinner(wrapper); doDeploy(); }, cachedFlowchart, onVideo, onRelated);
+            showResult(wrapper, data.error, data.flowChartMermaid, true, () => { showSpinner(wrapper); doDeploy(); }, cachedFlowchart, onVideo);
             return;
           }
           const url = data.vercelDeployment?.url || `${appUrl}/studio?repo=${encodeURIComponent(repoUrl)}`;
@@ -269,13 +263,11 @@
           const onRetry = () => { showSpinner(wrapper); doDeploy(); };
           cachedFlowchart = (data.flowChartMermaid && data.flowChartMermaid.trim()) ? data.flowChartMermaid : DEFAULT_FLOWCHART;
           const onVideo = () => getAppUrl().then((appUrl) => showVideoModal(appUrl, repoUrl));
-          const onRelated = () => getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
-          showResult(wrapper, isError ? msg : url, data.flowChartMermaid, isError, isError ? onRetry : null, cachedFlowchart, onVideo, onRelated);
+          showResult(wrapper, isError ? msg : url, data.flowChartMermaid, isError, isError ? onRetry : null, cachedFlowchart, onVideo);
         }).catch((err) => {
           const msg = err?.message || "Failed to fetch. Check app URL and CORS.";
           const onVideo = () => getAppUrl().then((appUrl) => showVideoModal(appUrl, repoUrl));
-          const onRelated = () => getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
-          showResult(wrapper, msg, null, true, () => { showSpinner(wrapper); doDeploy(); }, DEFAULT_FLOWCHART, onVideo, onRelated);
+          showResult(wrapper, msg, null, true, () => { showSpinner(wrapper); doDeploy(); }, DEFAULT_FLOWCHART, onVideo);
         });
       };
 
@@ -309,13 +301,9 @@
     const videoBtn = createVideoButton(() => {
       getAppUrl().then((appUrl) => showVideoModal(appUrl, repoUrl));
     });
-    const relatedBtn = createRelatedButton(() => {
-      getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
-    });
     wrapper.appendChild(btn);
     wrapper.appendChild(flowchartBtn);
     wrapper.appendChild(videoBtn);
-    wrapper.appendChild(relatedBtn);
     actionsBar.prepend(wrapper);
   }
 
@@ -351,7 +339,16 @@
       const esc = (x) => String(x || "").replace(/</g, "&lt;").replace(/"/g, "&quot;");
       const section = document.createElement("div");
       section.className = "gitvision-summary-section gitvision-related-repos";
-      section.innerHTML = `<strong>Related repos</strong><ul class="gitvision-related-list">${repos.map((r) => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" class="gitvision-related-link">${esc(r.fullName)}</a>${r.stars ? ` <span class="gitvision-related-stars">★ ${r.stars}</span>` : ""}</li>`).join("")}</ul>`;
+      section.innerHTML = `<strong>Related repos</strong><div class="gitvision-related-cards">${repos.map((r) => `
+        <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" class="gitvision-related-card">
+          <span class="gitvision-related-card-name">${esc(r.fullName)}</span>
+          ${r.description ? `<span class="gitvision-related-card-desc">${esc(r.description.slice(0, 80))}${r.description.length > 80 ? "…" : ""}</span>` : ""}
+          <span class="gitvision-related-card-meta">
+            ${r.stars ? `<span class="gitvision-related-stars">★ ${r.stars}</span>` : ""}
+            ${r.language ? `<span class="gitvision-related-lang">${esc(r.language)}</span>` : ""}
+          </span>
+        </a>
+      `).join("")}</div>`;
       bodyEl.appendChild(section);
     };
 
@@ -404,12 +401,15 @@
   }
 
   document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "g") {
-      const repoUrl = getRepoUrl();
-      if (repoUrl) {
-        e.preventDefault();
-        getAppUrl().then((appUrl) => showSummaryModal(appUrl, repoUrl));
-      }
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const repoUrl = getRepoUrl();
+    if (!repoUrl) return;
+    if (e.key === "g") {
+      e.preventDefault();
+      getAppUrl().then((appUrl) => showSummaryModal(appUrl, repoUrl));
+    } else if (e.key === "r") {
+      e.preventDefault();
+      getAppUrl().then((appUrl) => showRelatedReposModal(appUrl, repoUrl));
     }
   });
 

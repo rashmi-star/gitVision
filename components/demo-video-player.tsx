@@ -1,6 +1,6 @@
 "use client";
 
-import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, Video } from "remotion";
 import { Player } from "@remotion/player";
 
 
@@ -91,9 +91,21 @@ function DemoVideo({ scenes }: DemoVideoPlayerProps) {
 
   return (
     <AbsoluteFill>
+      <AbsoluteFill style={{ backgroundColor: "#0f172a" }}>
+        <Video
+          src="/background.mp4"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+          loop
+        />
+      </AbsoluteFill>
       <AbsoluteFill
         style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+          background: "linear-gradient(180deg, transparent 0%, rgba(2,6,23,0.6) 100%)",
+          pointerEvents: "none",
         }}
       />
       {parsed.map((scene, index) => (

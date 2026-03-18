@@ -180,12 +180,12 @@ export function HomePageContent() {
           <p className="text-sm uppercase tracking-[0.18em] text-slate-400">Browser extension</p>
           <h2 className="mt-2 text-3xl font-semibold">Add GitVision to GitHub</h2>
         </div>
-        <div className="rounded-2xl border border-white/15 bg-white/5 p-8">
-          <p className="text-slate-300">
-            Install the extension to get Preview, Flowchart, Video, and Related repos buttons on any GitHub repo page.
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.02] p-8 shadow-xl">
+          <p className="text-slate-300 leading-relaxed">
+            Install the extension to get Preview, Flowchart, Video on any GitHub repo page. Use Ctrl+G for summary, Ctrl+R for related repos.
           </p>
-          <div className="mt-6 flex flex-wrap gap-4">
-            <Button asChild size="lg">
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild size="lg" className="shadow-lg shadow-indigo-500/20">
               <a href="/api/extension-download" download="gitvision-extension.zip">
                 <Puzzle className="size-4" />
                 Download extension
@@ -195,15 +195,15 @@ export function HomePageContent() {
               <Link href="/extension">More details</Link>
             </Button>
           </div>
-          <div className="mt-8 rounded-xl border border-white/10 bg-black/30 p-6">
-            <h3 className="font-semibold">Install steps</h3>
-            <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-slate-300">
+          <div className="mt-8 rounded-xl border border-white/5 bg-black/20 p-6">
+            <h3 className="font-semibold text-slate-200">Install steps</h3>
+            <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-slate-400 leading-relaxed">
               <li>Click &quot;Download extension&quot; above — the zip file downloads automatically</li>
               <li>Unzip the file: right-click the zip → &quot;Extract All&quot; (Windows) or double-click (Mac) — choose a folder you can find later</li>
-              <li>Open Chrome and go to <code className="rounded bg-white/10 px-1.5 py-0.5">chrome://extensions</code></li>
+              <li>Open Chrome and go to <code className="rounded bg-white/10 px-1.5 py-0.5 text-slate-300">chrome://extensions</code></li>
               <li>Turn on &quot;Developer mode&quot; (toggle in the top-right corner)</li>
               <li>Click &quot;Load unpacked&quot; and select the unzipped folder</li>
-              <li>Go to any GitHub repo (e.g. <code className="rounded bg-white/10 px-1.5 py-0.5">github.com/owner/repo</code>) — the extension runs automatically and the GitVision buttons appear next to the repo name</li>
+              <li>Go to any GitHub repo — the extension runs automatically and the GitVision buttons appear next to the repo name</li>
             </ol>
           </div>
         </div>
