@@ -1,26 +1,55 @@
 # GitVision
 
-**See what a GitHub project actually does—instantly.** GitVision analyzes repositories and turns code into clear product understanding: architecture, screens, and live previews.
+**See what a repository actually does—instantly.** GitVision analyzes repos and turns code into clear product understanding: architecture, Mermaid flowcharts, live Vercel previews, and optional demo videos.
 
-Built for the [Microsoft AI Dev Days Hackathon](https://aka.ms/aidevdayshackathon).
+- **Live app (example):** [git-vision-pi.vercel.app](https://git-vision-pi.vercel.app)
+- **License:** [MIT](LICENSE) (see **Project information** on GitLab for hackathon visibility)
 
-## Microsoft Technologies Used
+---
 
-| Technology | Usage |
-|------------|-------|
-| **Azure OpenAI** | AI-powered analysis and demo script generation (optional) |
-| **Azure** | Deploy to Azure Static Web Apps or App Service |
-| **GitHub** | Public repo, development, and deployment |
-| **GitHub Copilot** | Built with GitHub Copilot for faster development |
+## GitLab AI Hackathon
+
+This project is structured for the **[GitLab AI Hackathon](https://gitlab.devpost.com/)** submission:
+
+| Requirement | How GitVision satisfies it |
+|-------------|----------------------------|
+| **Public GitLab repo** in the hackathon group | Mirror or push this repo to your group project (steps below). |
+| **Custom public agent or flow** | Build a **GitLab Duo** agent/flow that calls `POST /api/analyze` with `{ "repositoryUrl": "<https URL>" }` and posts results (summary + preview URL) on a merge request—not chat-only. |
+| **SDLC automation** | Speeds up **code review** by summarizing the repo and surfacing a **deployable preview** on MR context. |
+
+**Hackathon links:** [Devpost](https://gitlab.devpost.com/) · [Rules](https://gitlab.devpost.com/rules) · [Duo access form](https://docs.google.com/forms/d/e/1FAIpQLSeZH1aGJKV9i02Ig63EA8n9d9bLbdfkLIWT-IUphyoNxbR6YA/viewform) (after registering on Devpost)
+
+### Put this repo on GitLab (after you have group access)
+
+**Option A — Import from GitHub**
+
+1. In the **GitLab AI Hackathon** group: **New project** → **Import project** → **Repository by URL** or **GitHub**.
+2. Set visibility to **Public**.
+3. Confirm **LICENSE** and **README** appear on the project home page.
+
+**Option B — Add a second remote and push**
+
+```bash
+# From your local clone (replace with your GitLab project URL)
+git remote add gitlab https://gitlab.com/<hackathon-group>/<your-project>.git
+git push -u gitlab master   # or main
+```
+
+**Option C — Mirror (keep GitHub + GitLab in sync)**  
+GitLab: **Settings → Repository → Mirroring repositories** → enter your GitHub repo URL + credentials.
+
+---
 
 ## Features
 
 - Repository classification (project type, frontend, backend)
-- Architecture summary and Mermaid flowcharts
+- Architecture summary and **Mermaid** flowcharts
 - Detected screens and user flows
-- One-click Vercel deployment for instant preview
-- AI-generated demo video script (OpenAI or Azure OpenAI)
-- Remotion-powered demo video with customizable scenes
+- One-click **Vercel** deployment for instant preview (`deployToVercel` on analyze)
+- AI-generated demo video (OpenAI, Azure OpenAI, or Google GenAI—see `.env.example`)
+- **Chrome extension** for GitHub: floating menu (preview, flowchart, summary, related repos, deploy toast)
+
+---
 
 ## Setup
 
@@ -30,33 +59,24 @@ Built for the [Microsoft AI Dev Days Hackathon](https://aka.ms/aidevdayshackatho
 npm install
 ```
 
-2. Configure AI (optional):
+2. Configure environment:
 
 ```bash
 cp .env.example .env.local
 ```
 
-**Option A – OpenAI:**
-- Set `OPENAI_API_KEY` in `.env.local`
+**AI (pick one or more—see `.env.example`):**
 
-**Option B – Azure OpenAI (recommended for hackathon):**
-- Set `AZURE_OPENAI_ENDPOINT` (e.g. `https://your-resource.openai.azure.com`)
-- Set `AZURE_OPENAI_API_KEY`
-- Set `AZURE_OPENAI_DEPLOYMENT` (e.g. `gpt-4o-mini`)
+- **OpenAI:** `OPENAI_API_KEY`
+- **Azure OpenAI:** `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`
+- **Google:** `GOOGLE_API_KEY` / GenAI as documented in `.env.example`
 
-Optional model overrides:
-- `OPENAI_ANALYSIS_MODEL` / `OPENAI_ANALYSIS_FALLBACK_MODEL`
-- `OPENAI_DEMO_MODEL` / `OPENAI_DEMO_FALLBACK_MODEL`
+**Vercel (optional, for deploy from API):**
 
-3. Configure Vercel (optional, for deploy):
+- `VERCEL_TOKEN` — [vercel.com/account/tokens](https://vercel.com/account/tokens)
+- `VERCEL_PREVIEW_PROJECT` (default `gitvision-preview`), `VERCEL_TEAM_ID` if on a team
 
-- `VERCEL_TOKEN`: Create at [vercel.com/account/tokens](https://vercel.com/account/tokens)
-- The GitHub repo must be accessible to your Vercel account
-- All deployments use one project (`VERCEL_PREVIEW_PROJECT`, default `gitvision-preview`)
-- `VERCEL_TEAM_ID`: Required if using a Vercel team
-- `VERCEL_PREVIEW_URL`: Override the preview URL for teams
-
-4. Run development server:
+3. Run locally:
 
 ```bash
 npm run dev
@@ -64,36 +84,59 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Deploy to Azure
+---
 
-1. Create an [Azure free account](https://azure.microsoft.com/free)
-2. In Azure Portal: **Create a resource** → **Static Web App**
-3. Connect your GitHub repo
-4. Build details:
-   - **App location:** `.` (repo root)
-   - **Build preset:** Next.js
-5. Add environment variables in **Configuration** → **Application settings**
+## API (for GitLab Duo agent / integrations)
 
-## API Routes
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/analyze` | Body: `{ "repositoryUrl": "https://github.com/owner/repo", "deployToVercel": true }`. Returns analysis, optional `vercelDeployment.url`, flowchart Mermaid, etc. |
+| `POST` | `/api/demo-script` | Demo video scene script (when AI keys configured). |
+| `POST` | `/api/deploy` | Deploy a GitHub repo to Vercel. |
 
-- `POST /api/analyze`: Clones repo, scans files, infers stack, returns preview plan. Optionally deploys to Vercel.
-- `POST /api/demo-script`: Returns demo video scene list (OpenAI or Azure OpenAI if configured).
-- `POST /api/deploy`: Deploys a GitHub repo to Vercel.
+Base URL: your deployment (e.g. `https://git-vision-pi.vercel.app`) or `http://localhost:3000` in dev.
 
-## Security & Privacy
+**Example:**
 
-- **No persistent storage:** Temporary repository clones are deleted after analysis. Only metadata (preview URL, deployment ID) is retained.
-- **No code retention:** Repository contents are not stored on disk beyond the analysis session.
-- **API keys:** Stored in environment variables; never exposed to the client.
+```bash
+curl -X POST https://YOUR_APP/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"repositoryUrl":"https://gitlab.com/group/project","deployToVercel":true}'
+```
+
+---
+
+## Browser extension
+
+See **[extension/README.md](extension/README.md)** for install steps.  
+Default app URL in `extension/content.js`: `DEFAULT_APP_URL` → `https://git-vision-pi.vercel.app`.
+
+---
+
+## Deploy to Azure (optional)
+
+1. [Azure free account](https://azure.microsoft.com/free)
+2. **Static Web App** or **App Service** → connect repo
+3. Build: Next.js from repo root
+4. Copy env vars from `.env.example` into **Application settings**
+
+---
+
+## Microsoft AI Dev Days (legacy note)
+
+Originally submitted with Azure OpenAI / GitHub stack. Current README prioritizes **GitLab hackathon** + general OSS use.
+
+---
+
+## Security & privacy
+
+- Analysis uses **temporary** clones; clones are removed after processing.
+- API keys only in **server** environment variables.
+- GitVision **summarizes** existing repos; it does not train on your data.
+
+---
 
 ## Responsible AI
 
-- GitVision performs **analysis only**—it does not generate code, images, or other creative content.
-- AI is used to summarize and explain existing repositories.
-- No user data is used for model training.
-
-## Notes
-
-- Temp clone (`/tmp/gitvision-job-*`) is deleted after analysis.
-- Vercel deployment is triggered directly after analysis when configured.
-- OpenAI or Azure OpenAI key can be passed from UI input or from env vars.
+- Analysis and explanation of **existing** repositories only.
+- No use of customer data for model training by this codebase.
